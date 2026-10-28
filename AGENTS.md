@@ -1,0 +1,34 @@
+# AGENTS.md
+
+Igor is a Manifest V3 Chrome extension: a side-panel chat with a local Ollama model that can read the Element Web room currently open in the active tab. Plain JS ES modules, no build step, no dependencies.
+
+## Layout
+
+- `manifest.json` — permissions, side panel, service worker
+- `src/background.js` — opens the side panel on toolbar click
+- `src/extract.js` — `extractRoom(limit)`; injected into the Element tab with `world: "MAIN"`, so it must stay self-contained (no imports, no closures over module state)
+- `src/panel.{html,css,js}` — chat UI, model picker, Ollama streaming, tool-call loop, web tools
+
+## Conventions
+
+- No inline `<script>` (MV3 CSP), no remote code, no build tooling.
+- Comment sparingly; only non-obvious code.
+- Render model output by escaping first, then applying the tiny markdown pass (`renderMarkdown`). Never insert raw model or page text as HTML.
+- Never commit room contents, tokens, or personal hostnames. Test output from real rooms stays out of the repo.
+
+## Things that will bite you
+
+- Room context uses Element's internal `window.mxMatrixClientPeg`; it may change between Element versions. History is fetched via `createMessagesRequest` because the live timeline can be a short window with no back token.
+- Ollama must allow extension origins (`OLLAMA_ORIGINS=chrome-extension://*`), otherwise requests get 403.
+- Chat requests send `think: false` and an explicit `options.num_ctx`; without it Ollama silently truncates long room dumps.
+- DuckDuckGo blocks extension-originated requests (202/403 bot check); web search uses Brave's HTML results. A blocked search must return an error to the model, never an empty result.
+- Models without tool support error with "does not support tools"; the loop retries without tools.
+
+## Testing
+
+No unit-test harness yet. Manual loop:
+
+1. Branded Chrome 137+ ignores `--load-extension`. Use a dedicated profile with `--remote-debugging-port=9223 --user-data-dir=<dir>`, then Load unpacked from `chrome://extensions`.
+2. The side panel can't be driven over CDP. Open `chrome-extension://<id>/src/panel.html?tab=<element-tab-id>` as a normal tab; the `?tab=` override makes the panel target that tab. Get the tab id via `chrome.tabs.query` from the extension service worker.
+3. `extractRoom` can be run in the Element page via `Runtime.evaluate` (strip the `export`). Check message counts and ordering, not bodies.
+4. Syntax check: `node --check --input-type=module < src/panel.js`.

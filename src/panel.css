@@ -1,0 +1,19 @@
+:root { color-scheme: light dark; --accent: #0dbd8b; }
+* { box-sizing: border-box; }
+body { margin: 0; height: 100vh; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; }
+header, #ctxbar { display: flex; gap: 6px; align-items: center; padding: 6px 8px; border-bottom: 1px solid #8884; }
+header select { flex: 1; min-width: 0; }
+#ctx-info { flex: 1; opacity: .7; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#log { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.msg { padding: 6px 10px; border-radius: 8px; max-width: 95%; overflow-wrap: anywhere; }
+.msg.user { align-self: flex-end; background: var(--accent); color: #fff; white-space: pre-wrap; }
+.msg.assistant { align-self: flex-start; background: #8883; }
+.msg.tool { align-self: flex-start; font: 12px ui-monospace, monospace; opacity: .7; background: none; padding: 0 10px; }
+.msg.error { align-self: stretch; background: #d336; }
+.msg pre { overflow-x: auto; padding: 6px; background: #0003; border-radius: 4px; }
+.msg code { font-family: ui-monospace, monospace; }
+#form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid #8884; }
+#input { flex: 1; resize: vertical; }
+#settings { padding: 4px 8px 8px; border-top: 1px solid #8884; font-size: 12px; }
+#settings label { display: block; margin-top: 4px; }
+#settings input[type=text], #settings input[type=number] { width: 100%; }

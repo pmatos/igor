@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Igor",
+  "version": "0.1.0",
+  "description": "Igor: a local-LLM chat sidebar for Element Web that knows the room you are looking at.",
+  "permissions": ["sidePanel", "scripting", "tabs", "storage"],
+  "host_permissions": [
+    "http://localhost:11434/*",
+    "http://127.0.0.1:11434/*",
+    "https://*/*"
+  ],
+  "optional_host_permissions": ["http://*/*"],
+  "background": { "service_worker": "src/background.js" },
+  "side_panel": { "default_path": "src/panel.html" },
+  "action": { "default_title": "Igor" }
+}

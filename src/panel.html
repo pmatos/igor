@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Igor</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header>
+    <strong>Igor</strong>
+    <select id="model" title="Ollama model"></select>
+    <button id="refresh" title="Reload model list">&#x21bb;</button>
+    <button id="clear" title="Clear chat">Clear</button>
+  </header>
+
+  <div id="ctxbar">
+    <label><input type="checkbox" id="use-ctx" checked> Room context</label>
+    <label><input type="checkbox" id="use-tools" checked> Web tools</label>
+    <span id="ctx-info">no room yet</span>
+    <button id="grant" hidden>Allow this site</button>
+  </div>
+
+  <main id="log"></main>
+
+  <form id="form">
+    <textarea id="input" rows="2" placeholder="Ask Igor about this room…"></textarea>
+    <button id="send" type="submit">Send</button>
+  </form>
+
+  <details id="settings">
+    <summary>Settings</summary>
+    <label>Ollama URL <input id="base-url" type="text"></label>
+    <label>Context window (tokens) <input id="num-ctx" type="number" min="2048" step="1024"></label>
+    <label>Max room messages <input id="max-msgs" type="number" min="10" step="10"></label>
+  </details>
+
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

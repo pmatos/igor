@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.*
+*.pem
+*.key
+*.crx
+*.log
+.DS_Store
