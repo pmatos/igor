@@ -6,3 +6,4 @@ node_modules/
 *.crx
 *.log
 .DS_Store
+/dist/
