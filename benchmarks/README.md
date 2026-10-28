@@ -54,4 +54,20 @@ Generate rooms from a structured event list so ground truth is known, seed every
 6. **Tool use depth:** mock tool backend with canned results; score call sequences (search then fetch then answer), argument exactness (query/URL/count), not calling a tool when the context already has the answer, wrong-tool distractors, parallel calls, numeric arguments.
 7. **Performance curves:** prefill, decode and time-to-first-token at 2k/4k/8k/16k/32k context, thinking on vs off (Spark has none/low/high), warm vs cold.
 
-Statistical hygiene: at least 30 items per category with confidence intervals, interleave models (ABAB) to cancel thermal and load drift, repeat speed runs and report mean and spread, and record the load average at start and end of every run. Keep prompts below Ollama's ~8k truncation limit unless `num_ctx` is verified to apply (check the `truncated` field in results).
+Statistical hygiene: at least 30 items per category with confidence intervals, interleave models (ABAB) to cancel thermal and load drift, repeat speed runs and report mean and spread, and record the load average at start and end of every run. Truncation happens when a prompt exceeds `num_ctx` (observed: a 21k-token prompt at `num_ctx` 16384 was cut to ~8k, dropping the middle), so keep prompt + output under `num_ctx` and check the Ollama journal for `truncating input prompt` after each run.
+
+## Harder benchmarks (`hard.py`)
+
+Implements the plan above for needle recall, abstention and tool use, plus reply understanding. Datasets are generated deterministically (`python3 -I hard.py gen`) and stored in `datasets/`; scoring is exact matching, reported with Wilson 95% intervals. The system prompt, message format and tool loop mirror `src/panel.js`; `num_ctx` is 24576 for every cell.
+
+```sh
+python3 -I hard.py run gemma4:26b-a4b-it-qat            # reply, recall, tools (about 35 min per model)
+python3 -I hard.py run <model> --bench reply --tools-n 30
+python3 -I hard.py report results/hard-*.jsonl
+```
+
+- **recall:** 11 questions per synthetic room at 3 lengths (about 3k, 8k and 15k tokens) and 6 seeds each. Types: direct lookup with paraphrased questions, revisions (the latest value must win), same-attribute decoys for other projects, and abstention (`NOT_FOUND`) for near-miss and fully absent facts. Answer values (`SPICE-NN`) never occur in the filler. Reported: present recall, abstention, balanced accuracy, by depth, length and type.
+- **tools:** mock backend; categories `search`, `search_fetch` (must fetch the URL, the snippet lacks the fact), `restraint` (answer already in context: no call), `older` (`get_older_messages` with a numeric count), `decoy_tools` (similarly named extra tools), `two_subjects`. Pass requires the right tool, right arguments and a correct final answer.
+- **reply:** who said what when a message replies to another. Each scenario is rendered under three encodings: `plain` (what Igor sent until now: the reply body alone), `fallback` (legacy quoted prefix) and `marker` (`X (replying to [#N] Y)`), which separates model comprehension from how replies are encoded in the context. Types: `self_attr` (a first-person reply to someone's remark, a real failure seen with some models) and `accept` ("fine by me" replying to one of two competing proposals).
+
+Results for the runs are added under `results/hard-*.jsonl` as they complete.

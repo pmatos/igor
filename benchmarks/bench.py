@@ -1,5 +1,5 @@
 # Usage: BENCH_LINES=110 BENCH_OUT=results/run.jsonl python3 -I bench.py <ollama model> [...]
-# Keep prompts under ~8k tokens: Ollama truncates longer ones (the middle is dropped) and recall scores become meaningless.
+# Keep prompt + output under num_ctx: Ollama truncates longer prompts (the middle is dropped) and recall scores become meaningless.
 import json, random, subprocess, sys, time, urllib.request
 
 BASE = "http://localhost:11434"
