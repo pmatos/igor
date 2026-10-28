@@ -291,7 +291,7 @@ def system_prompt(messages=None, use_tools=False, answer_format=False, formatter
     if reply_note:
         base += " A message written as 'Name (replying to [#M] Other)' is a reply to message [#M]; what it says is about or answers that message, and any first-person statement in it belongs to the replier."
     if answer_format:
-        base += " Test format: reply with only the value, or exactly NOT_FOUND if the messages do not contain it."
+        base += " Test format: reply with only the value itself (not a message reference), or exactly NOT_FOUND if the messages do not contain it."
     if messages is None:
         return base
     return f'{base}\n\nThe user is "Tester". Current room: "Test room".\nMost recent {len(messages)} messages, oldest first:\n\n' + "\n".join(map(formatter, messages))
@@ -384,7 +384,7 @@ def mock_tool(item, name, args):
     args = args if isinstance(args, dict) else {}
     if name == "web_search":
         q = str(args.get("query", "")).lower()
-        hits = [p["hit"] for p in item["products"] if p["token"] in q]
+        hits = [p["hit"] for p in item["products"] if p["token"] in q and "hit" in p]
         rest = item["distractors"] if hits else item["distractors"][:2]
         return "\n\n".join(hits + rest) or "No results."
     if name == "fetch_url":
@@ -530,6 +530,17 @@ def cmd_report(args):
         if pres and absn:
             pk, ak = sum(r["pass"] for r in pres) / len(pres), sum(r["pass"] for r in absn) / len(absn)
             print(f"recall present {100 * pk:.0f}%  abstain {100 * ak:.0f}%  balanced accuracy {100 * (pk + ak) / 2:.0f}%")
+        if pres:
+            ctxs = {c["id"]: {m["ref"]: m["body"] for m in c["messages"]} for c in load("recall.jsonl")}
+
+            def located(r):
+                if r["pass"]:
+                    return True
+                refs = [int(x) for x in re.findall(r"#(\d+)", r["answer"])]
+                bodies = ctxs.get(r["id"], {})
+                return bool(refs) and any(r["expected"] in bodies.get(x, "") for x in refs)
+
+            print(f"  present recall counting a cited ref that points at the right message: {fmt([{'pass': located(r)} for r in pres])}")
         for label, key in (("type", lambda r: r["type"]), ("length", lambda r: r["cell"]),
                            ("depth", lambda r: None if r["depth"] is None else ("early" if r["depth"] < 1 / 3 else "mid" if r["depth"] < 2 / 3 else "late"))):
             groups = {}

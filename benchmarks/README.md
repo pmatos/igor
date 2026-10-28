@@ -70,4 +70,42 @@ python3 -I hard.py report results/hard-*.jsonl
 - **tools:** mock backend; categories `search`, `search_fetch` (must fetch the URL, the snippet lacks the fact), `restraint` (answer already in context: no call), `older` (`get_older_messages` with a numeric count), `decoy_tools` (similarly named extra tools), `two_subjects`. Pass requires the right tool, right arguments and a correct final answer.
 - **reply:** who said what when a message replies to another. Each scenario is rendered under three encodings: `plain` (what Igor sent until now: the reply body alone), `fallback` (legacy quoted prefix) and `marker` (`X (replying to [#N] Y)`), which separates model comprehension from how replies are encoded in the context. Types: `self_attr` (a first-person reply to someone's remark, a real failure seen with some models) and `accept` ("fine by me" replying to one of two competing proposals).
 
-Results for the runs are added under `results/hard-*.jsonl` as they complete.
+### Results (`results/hard-*.jsonl`, 2026-10-28)
+
+`gemma4:26b-a4b-it-qat` vs `SparkLLM/Spark-X2.6-4B:q4_k_m`. 95% Wilson intervals are in `python3 -I hard.py report`. The machine was loaded (load average 11-14 on 24 cores), which affects time but not accuracy. Reply and gemma tools come from the first run; recall (and Spark tools) were re-run after fixing the answer-format sentence and a mock-backend crash (see the `note` field in each file).
+
+**Reply understanding** (120 questions per encoding; `accept` = "fine by me" replying to one of two proposals):
+
+| Encoding | gemma4 26b | Spark 4B |
+|---|---|---|
+| `plain` (reply body only) | 73% (`accept` 47%, distant replies 59%) | 50% |
+| `fallback` (legacy quote prefix) | 99% | 64% |
+| `marker` (`X (replying to [#N] Y)`) | 100% | 62% |
+
+The first-person case (`self_attr`, the "I suffer from FOMO" example) is fine for gemma even in plain form (100%) and weaker for Spark (70% plain, 77% with the marker). The big encoding effect is on replies whose referent is not adjacent. Encoding replies explicitly takes gemma from 73% to 100%; Spark gains little.
+
+**Recall / abstention** (126 present-fact and 72 absent questions, rooms of about 3k, 9k and 17k tokens):
+
+| | gemma4 26b | Spark 4B |
+|---|---|---|
+| present recall (strict: value in the answer) | 81% | 8% |
+| ...also counting a cited `[#N]` that points at the right message | 84% | 52% |
+| abstention (`NOT_FOUND` when absent) | 92% | 40% |
+| balanced accuracy | 86% | 24% |
+
+Spark mostly answers with a bare `[#N]` reference (Igor's prompt tells it to cite messages), so strict scoring understates it; even counting those it locates the right message about half as often as gemma. It also misses paraphrases ("pager schedule" vs "on-call rotation") and rarely abstains. Revisions (latest value must win) are the hardest type for gemma too (58%).
+
+**Tool use** (30 mock cases per category; pass = right tool, right arguments, correct final answer):
+
+| Category | gemma4 26b | Spark 4B |
+|---|---|---|
+| `search` | 100% | 100% |
+| `search_fetch` (must fetch the page, the snippet lacks the fact) | 0% | 90% |
+| `restraint` (answer already in context: no tool call) | 100% | 13% |
+| `older` (`get_older_messages`, numeric count) | 100% | 100% |
+| `decoy_tools` | 100% | 100% |
+| `two_subjects` | 100% | 100% |
+
+gemma stops after the search snippet and never fetches the page; Spark fetches but calls tools even when the answer is already in the room (87% of `restraint` cases).
+
+**Takeaway:** gemma4 26b is the better default for answering questions about a room. Spark is fast and handles tool calls, but it is much weaker at recall, abstention and replies.
