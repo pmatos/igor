@@ -9,6 +9,9 @@ const DEFAULTS = {
   useTools: true,
 };
 
+// Benchmarked on a Ryzen AI 9 iGPU: MoE 26b-a4b is ~2.5x faster than dense 12b at equal recall/tool-use quality
+const PREFERRED_MODELS = ["gemma4:26b-a4b-it-qat", "gemma4:e4b-it-qat"];
+
 const $ = (id) => document.getElementById(id);
 const el = { model: $("model"), log: $("log"), input: $("input"), send: $("send"), info: $("ctx-info"), grant: $("grant") };
 
@@ -117,7 +120,10 @@ async function loadModels() {
     const { models } = await res.json();
     for (const m of models) el.model.add(new Option(m.name, m.name));
     if (!models.length) throw new Error("no models pulled");
-    el.model.value = models.some((m) => m.name === cfg.model) ? cfg.model : models[0].name;
+    const names = models.map((m) => m.name);
+    el.model.value = names.includes(cfg.model)
+      ? cfg.model
+      : PREFERRED_MODELS.find((n) => names.includes(n)) ?? names[0];
     save({ model: el.model.value });
     await loadModelLimit();
   } catch (e) {
