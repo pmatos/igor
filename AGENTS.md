@@ -28,7 +28,7 @@ Igor is a Manifest V3 Chrome extension: a side-panel chat with a local Ollama mo
 
 No unit-test harness yet. Manual loop:
 
-1. Branded Chrome 137+ ignores `--load-extension`. Use a dedicated profile with `--remote-debugging-port=9223 --user-data-dir=<dir>`, then Load unpacked from `chrome://extensions`.
+1. Branded Chrome 137+ ignores `--load-extension`, and 136+ ignores `--remote-debugging-port` on the default profile (devtools `--autoConnect` then 403s or opens its own blank browser). Use a dedicated profile with `--remote-debugging-port=9223 --user-data-dir=<dir>`, log in to Element there manually, then Load unpacked from `chrome://extensions` and drive it over CDP on that port.
 2. The side panel can't be driven over CDP. Open `chrome-extension://<id>/src/panel.html?tab=<element-tab-id>` as a normal tab; the `?tab=` override makes the panel target that tab. Get the tab id via `chrome.tabs.query` from the extension service worker.
 3. `extractRoom` can be run in the Element page via `Runtime.evaluate` (strip the `export`). Check message counts and ordering, not bodies.
 4. Syntax check: `node --check --input-type=module < src/panel.js`.
