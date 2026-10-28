@@ -34,6 +34,8 @@ First questions in a long room can be slow on modest hardware because the whole 
 
 - Room context comes from Element's own `window.mxMatrixClientPeg` (matrix-js-sdk client), read via a `world: "MAIN"` script injected on each send. Decrypted events work; no second Matrix login. This is an internal global and may change between Element versions.
 - The room is taken from the URL hash (`#/room/...`). Older history is back-paginated up to "Max room messages".
+- Replies are encoded as `Name (replying to [#N] Other): ...` (from the Matrix reply relation; the legacy quoted fallback is stripped), because a bare reply body is ambiguous: see `benchmarks/` (reply understanding rose from 73% to 100% for `gemma4:26b-a4b-it-qat`).
+- Default model is `gemma4:26b-a4b-it-qat` when installed (falls back to `gemma4:e4b-it-qat`, then the first model); a model you pick in the dropdown stays pinned.
 - Model list comes from `GET /api/tags`; chat uses `/api/chat` with streaming, `think: false` and an explicit `num_ctx`.
 
 ## Tools

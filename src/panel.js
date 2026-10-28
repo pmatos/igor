@@ -5,6 +5,7 @@ const DEFAULTS = {
   numCtx: 16384,
   maxMsgs: 200,
   model: "",
+  modelPinned: false,
   useCtx: true,
   useTools: true,
 };
@@ -55,6 +56,10 @@ function registerRefs(room) {
       refsByNum.set(r.n, r);
     }
     m.ref = r.n;
+  }
+  const inWindow = new Set(room.messages.map((m) => m.id));
+  for (const m of room.messages) {
+    if (m.replyTo && inWindow.has(m.replyTo)) m.replyRef = refs.get(m.replyTo)?.n;
   }
 }
 
@@ -121,9 +126,10 @@ async function loadModels() {
     for (const m of models) el.model.add(new Option(m.name, m.name));
     if (!models.length) throw new Error("no models pulled");
     const names = models.map((m) => m.name);
-    el.model.value = names.includes(cfg.model)
+    const pinned = cfg.modelPinned && names.includes(cfg.model);
+    el.model.value = pinned
       ? cfg.model
-      : PREFERRED_MODELS.find((n) => names.includes(n)) ?? names[0];
+      : PREFERRED_MODELS.find((n) => names.includes(n)) ?? (names.includes(cfg.model) ? cfg.model : names[0]);
     save({ model: el.model.value });
     await loadModelLimit();
   } catch (e) {
@@ -172,8 +178,15 @@ async function refreshInfo() {
   else el.info.textContent = `${r.name} (${r.memberCount ?? "?"} members)`;
 }
 
+function replyMarker(m) {
+  if (!m.replyTo) return "";
+  const who = m.replyToSender;
+  const target = m.replyRef ? `[#${m.replyRef}]${who ? ` ${who}` : ""}` : who ? `an earlier message by ${who}` : "an earlier message";
+  return ` (replying to ${target})`;
+}
+
 function formatMsg(m) {
-  return `${m.ref ? `[#${m.ref}] ` : ""}[${formatTime(m.ts)}] ${m.sender}: ${m.body}`;
+  return `${m.ref ? `[#${m.ref}] ` : ""}[${formatTime(m.ts)}] ${m.sender}${replyMarker(m)}: ${m.body}`;
 }
 
 function toolSentence(names) {
@@ -195,7 +208,8 @@ function systemPrompt(room, toolNames) {
     "You are Igor, an assistant living in a sidebar next to the Element (Matrix) chat client. " +
     "Answer questions about the conversation in the current room and help the user think about it. " +
     "Be concise. If the answer is not in the provided messages, say so instead of guessing. " +
-    "Each room message starts with a reference like [#12]. When you summarize or point to parts of the discussion, cite the relevant messages with these references, e.g. [#12] or [#12-#20], so the user can jump to them. Only cite references that appear in the messages." +
+    "Each room message starts with a reference like [#12]. When you summarize or point to parts of the discussion, cite the relevant messages with these references, e.g. [#12] or [#12-#20], so the user can jump to them. Only cite references that appear in the messages. " +
+    "A message written as 'Name (replying to [#M] Other)' is a reply to message [#M]; what it says is about or answers that message, and any first-person statement in it belongs to the replier." +
     (toolNames ? toolSentence(toolNames) : "");
   if (!room || room.error) return base;
   const budget = Math.floor(effectiveCtx() * 3 * 0.6);
@@ -447,7 +461,7 @@ el.input.addEventListener("keydown", (ev) => {
   }
 });
 el.model.addEventListener("change", () => {
-  save({ model: el.model.value });
+  save({ model: el.model.value, modelPinned: true });
   loadModelLimit();
 });
 $("refresh").addEventListener("click", loadModels);

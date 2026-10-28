@@ -48,12 +48,23 @@ export async function extractRoom(limit) {
     }
   }
 
-  const messages = events.slice(-limit).map((e) => ({
-    id: e.getId(),
-    ts: e.getTs(),
-    sender: e.sender?.name || e.getSender(),
-    body: e.getContent().body,
-  }));
+  const senderOf = (e) => e.sender?.name || e.getSender();
+  const byId = new Map(events.map((e) => [e.getId(), e]));
+  const messages = events.slice(-limit).map((e) => {
+    const content = e.getContent();
+    const replyTo = content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
+    let body = content.body;
+    // legacy reply fallback quotes the parent; the reply relation replaces it
+    if (replyTo && body.startsWith("> ")) body = body.replace(/^(?:>.*(?:\n|$))+\n*/, "") || body;
+    const parent = replyTo && (byId.get(replyTo) ?? room.findEventById?.(replyTo));
+    return {
+      id: e.getId(),
+      ts: e.getTs(),
+      sender: senderOf(e),
+      body,
+      ...(replyTo ? { replyTo, replyToSender: parent ? senderOf(parent) : undefined } : {}),
+    };
+  });
 
   return {
     roomId: room.roomId,
