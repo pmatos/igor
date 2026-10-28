@@ -17,3 +17,7 @@ header select { flex: 1; min-width: 0; }
 #settings { padding: 4px 8px 8px; border-top: 1px solid #8884; font-size: 12px; }
 #settings label { display: block; margin-top: 4px; }
 #settings input[type=text], #settings input[type=number] { width: 100%; }
+.msg a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.msg a:hover { text-decoration: underline; }
+.msg .stats { margin-top: 4px; font-size: 11px; opacity: .6; }
+#ctx-max { opacity: .7; }

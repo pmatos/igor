@@ -49,6 +49,7 @@ export async function extractRoom(limit) {
   }
 
   const messages = events.slice(-limit).map((e) => ({
+    id: e.getId(),
     ts: e.getTs(),
     sender: e.sender?.name || e.getSender(),
     body: e.getContent().body,

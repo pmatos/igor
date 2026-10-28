@@ -15,6 +15,9 @@ const el = { model: $("model"), log: $("log"), input: $("input"), send: $("send"
 let cfg = { ...DEFAULTS };
 let history = [];
 let abort = null;
+let modelMax = 0;
+const refs = new Map();
+const refsByNum = new Map();
 
 async function loadCfg() {
   cfg = { ...DEFAULTS, ...(await chrome.storage.local.get(Object.keys(DEFAULTS))) };
@@ -34,8 +37,37 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
+function formatTime(ts) {
+  return new Date(ts).toLocaleString("sv-SE").slice(0, 16);
+}
+
+function registerRefs(room) {
+  if (!/^![^\s/?#]+$/.test(room.roomId ?? "")) return;
+  for (const m of room.messages) {
+    if (!/^\$[^\s/?#]+$/.test(m.id ?? "")) continue;
+    let r = refs.get(m.id);
+    if (!r) {
+      r = { n: refs.size + 1, url: `${room.base}#/room/${room.roomId}/${m.id}`, sender: m.sender, ts: m.ts };
+      refs.set(m.id, r);
+      refsByNum.set(r.n, r);
+    }
+    m.ref = r.n;
+  }
+}
+
+function linkRefs(html) {
+  return html.replace(/\[#\d+(?:\s*[-–,]\s*#?\d+)*\]/g, (group) =>
+    group.replace(/#?(\d+)/g, (m, n) => {
+      const r = refsByNum.get(Number(n));
+      if (!r) return m;
+      const title = escapeHtml(`${r.sender}, ${formatTime(r.ts)}`);
+      return `<a href="${escapeHtml(r.url)}" data-ref="${r.n}" title="${title}" target="_blank" rel="noopener">#${r.n}</a>`;
+    }),
+  );
+}
+
 function renderMarkdown(text) {
-  return escapeHtml(text)
+  return linkRefs(escapeHtml(text))
     .replace(/```(?:\w*)\n?([\s\S]*?)```/g, (_, code) => `<pre><code>${code}</code></pre>`)
     .replace(/`([^`\n]+)`/g, "<code>$1</code>")
     .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
@@ -53,6 +85,30 @@ function addMsg(role, text) {
   return div;
 }
 
+function effectiveCtx() {
+  return modelMax ? Math.min(cfg.numCtx, modelMax) : cfg.numCtx;
+}
+
+async function loadModelLimit() {
+  modelMax = 0;
+  $("ctx-max").textContent = "";
+  $("num-ctx").removeAttribute("max");
+  if (!el.model.value) return;
+  try {
+    const res = await fetch(`${cfg.baseUrl}/api/show`, { method: "POST", body: JSON.stringify({ model: el.model.value }) });
+    if (!res.ok) return;
+    const info = (await res.json()).model_info ?? {};
+    const key = Object.keys(info).find((k) => k.endsWith(".context_length"));
+    if (key && Number(info[key]) > 0) {
+      modelMax = Number(info[key]);
+      $("ctx-max").textContent = `(model max ${modelMax})`;
+      $("num-ctx").max = modelMax;
+    }
+  } catch {
+    // limit is advisory; keep the configured value
+  }
+}
+
 async function loadModels() {
   el.model.replaceChildren();
   try {
@@ -63,6 +119,7 @@ async function loadModels() {
     if (!models.length) throw new Error("no models pulled");
     el.model.value = models.some((m) => m.name === cfg.model) ? cfg.model : models[0].name;
     save({ model: el.model.value });
+    await loadModelLimit();
   } catch (e) {
     addMsg("error", `Cannot list models from ${cfg.baseUrl}: ${e.message}. Is Ollama running with OLLAMA_ORIGINS=chrome-extension://* ?`);
   }
@@ -86,7 +143,13 @@ async function getRoom(limit) {
       func: extractRoom,
       args: [limit],
     });
-    return res?.result ?? { error: "empty" };
+    const room = res?.result ?? { error: "empty" };
+    if (!room.error) {
+      const u = new URL(tab.url);
+      room.base = u.origin + u.pathname + u.search;
+      registerRefs(room);
+    }
+    return room;
   } catch (e) {
     return { error: "inject", origin: new URL(tab.url).origin, message: String(e.message ?? e) };
   }
@@ -104,18 +167,23 @@ async function refreshInfo() {
 }
 
 function formatMsg(m) {
-  const t = new Date(m.ts).toISOString().slice(0, 16).replace("T", " ");
-  return `[${t}] ${m.sender}: ${m.body}`;
+  return `${m.ref ? `[#${m.ref}] ` : ""}[${formatTime(m.ts)}] ${m.sender}: ${m.body}`;
 }
 
 function systemPrompt(room, useTools) {
+  const now = new Date();
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
   const base =
+    `The current local date and time is ${formatTime(now)} (${weekday}, timezone ${tz}). Message timestamps use the same timezone. ` +
+    `When the user says "today", they mean only messages dated ${formatTime(now).slice(0, 10)}; ignore messages from other dates, and say so if there are none. ` +
     "You are Igor, an assistant living in a sidebar next to the Element (Matrix) chat client. " +
     "Answer questions about the conversation in the current room and help the user think about it. " +
-    "Be concise. If the answer is not in the provided messages, say so instead of guessing." +
+    "Be concise. If the answer is not in the provided messages, say so instead of guessing. " +
+    "Each room message starts with a reference like [#12]. When you summarize or point to parts of the discussion, cite the relevant messages with these references, e.g. [#12] or [#12-#20], so the user can jump to them. Only cite references that appear in the messages." +
     (useTools ? " You have tools: use web_search/fetch_url for current or external facts and get_older_messages for earlier room history, only when needed." : "");
   if (!room || room.error) return base;
-  const budget = Math.floor(cfg.numCtx * 3 * 0.6);
+  const budget = Math.floor(effectiveCtx() * 3 * 0.6);
   const lines = [];
   let used = 0;
   for (let i = room.messages.length - 1; i >= 0; i--) {
@@ -161,10 +229,16 @@ const TOOLS = [
   },
 ];
 
+function parseHtml(html) {
+  // inline on* handlers in fetched pages trip the extension CSP even in an inert DOMParser document
+  const clean = html.replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+  return new DOMParser().parseFromString(clean, "text/html");
+}
+
 async function webSearch(query) {
   const res = await fetch(`https://search.brave.com/search?q=${encodeURIComponent(query)}`);
   if (!res.ok) throw new Error(`search blocked or failed (HTTP ${res.status})`);
-  const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+  const doc = parseHtml(await res.text());
   const results = [...doc.querySelectorAll(".snippet[data-type=web]")].slice(0, 6).map((r) => {
     const title = (r.querySelector(".title") ?? r.querySelector("a"))?.textContent.trim();
     const desc = r.querySelector(".content, .snippet-description, .generic-snippet")?.textContent.trim() ?? "";
@@ -180,7 +254,7 @@ async function fetchUrl(url) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   let text = await res.text();
   if ((res.headers.get("content-type") ?? "").includes("html")) {
-    const doc = new DOMParser().parseFromString(text, "text/html");
+    const doc = parseHtml(text);
     doc.querySelectorAll("script,style,noscript,nav,footer,svg").forEach((n) => n.remove());
     text = doc.body?.textContent ?? "";
   }
@@ -225,7 +299,7 @@ async function streamChat(messages, tools, onText) {
       model: el.model.value,
       stream: true,
       think: false,
-      options: { num_ctx: cfg.numCtx },
+      options: { num_ctx: effectiveCtx() },
       messages,
       ...(tools && { tools }),
     }),
@@ -262,7 +336,18 @@ async function streamChat(messages, tools, onText) {
   return { content, toolCalls };
 }
 
+function addStats(div, t0, firstAt) {
+  const secs = (ms) => `${(ms / 1000).toFixed(1)}s`;
+  const stats = document.createElement("div");
+  stats.className = "stats";
+  stats.textContent = `first token ${firstAt === null ? "n/a" : secs(firstAt - t0)} · total ${secs(performance.now() - t0)}`;
+  div.append(stats);
+}
+
 async function ask(text) {
+  const t0 = performance.now();
+  let firstAt = null;
+  let lastOut = null;
   addMsg("user", text);
   history.push({ role: "user", content: text });
 
@@ -282,7 +367,9 @@ async function ask(text) {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       let out = null;
       const onText = (t) => {
+        firstAt ??= performance.now();
         out ??= addMsg("assistant", "");
+        lastOut = out;
         out.innerHTML = renderMarkdown(t);
         el.log.scrollTop = el.log.scrollHeight;
       };
@@ -324,6 +411,7 @@ async function ask(text) {
   } catch (e) {
     if (e.name !== "AbortError") addMsg("error", `Request failed: ${e.message}`);
   } finally {
+    if (lastOut) addStats(lastOut, t0, firstAt);
     abort = null;
     el.send.textContent = "Send";
   }
@@ -343,10 +431,15 @@ el.input.addEventListener("keydown", (ev) => {
     $("form").requestSubmit();
   }
 });
-el.model.addEventListener("change", () => save({ model: el.model.value }));
+el.model.addEventListener("change", () => {
+  save({ model: el.model.value });
+  loadModelLimit();
+});
 $("refresh").addEventListener("click", loadModels);
 $("clear").addEventListener("click", () => {
   history = [];
+  refs.clear();
+  refsByNum.clear();
   el.log.replaceChildren();
 });
 $("use-ctx").addEventListener("change", (e) => save({ useCtx: e.target.checked }));
@@ -357,6 +450,17 @@ $("base-url").addEventListener("change", (e) => {
 });
 $("num-ctx").addEventListener("change", (e) => save({ numCtx: Number(e.target.value) || DEFAULTS.numCtx }));
 $("max-msgs").addEventListener("change", (e) => save({ maxMsgs: Number(e.target.value) || DEFAULTS.maxMsgs }));
+el.log.addEventListener("click", async (ev) => {
+  const a = ev.target.closest?.("a[data-ref]");
+  if (!a || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;
+  ev.preventDefault();
+  const tab = await activeTab();
+  if (tab?.id && tab.url && new URL(tab.url).origin === new URL(a.href).origin) {
+    chrome.tabs.update(tab.id, { url: a.href, active: true });
+  } else {
+    window.open(a.href, "_blank", "noopener");
+  }
+});
 el.grant.addEventListener("click", async () => {
   const origin = el.grant.dataset.origin;
   if (origin && (await chrome.permissions.request({ origins: [`${origin}/*`] }))) refreshInfo();

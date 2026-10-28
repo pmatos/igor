@@ -27,6 +27,7 @@ First questions in a long room can be slow on modest hardware because the whole 
 
 - **Room context** checkbox: include recent messages of the open room in each question.
 - **Web tools** checkbox: let the model search the web, fetch pages and read older room history.
+- **Message links**: answers cite room messages as `#12` links with a hover tooltip (sender, time). Clicking one jumps the Element tab to that message, so you can ask for a summary and read the parts that matter.
 - **Clear** resets the conversation; switching rooms keeps the chat but the next question uses the new room.
 
 ## How it works
