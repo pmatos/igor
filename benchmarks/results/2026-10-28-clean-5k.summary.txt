@@ -1,0 +1,6 @@
+load avg (1m 5m) at start: 6.39 8.78   at end: 8.47 8.75
+SparkLLM/Spark-X2.6-4B:q8_0                prefill  671.9 tok/s  decode  14.7 tok/s  cold  11.9s  recall 11  tools YYY
+SparkLLM/Spark-X2.6-4B:q4_k_m              prefill  654.3 tok/s  decode  21.9 tok/s  cold  11.4s  recall 11  tools YYY
+gemma4:e4b-it-qat                          prefill  745.9 tok/s  decode  22.4 tok/s  cold  11.9s  recall 11  tools YYY
+gemma4:26b-a4b-it-qat                      prefill  638.8 tok/s  decode  21.2 tok/s  cold  16.3s  recall 11  tools YYY
+gemma4:12b                                 prefill  252.6 tok/s  decode   8.4 tok/s  cold  28.0s  recall 11  tools YYY

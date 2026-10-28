@@ -51,3 +51,7 @@ The extension requests `https://*/*` host access so `fetch_url` and Element on a
 - `src/panel.*` — side panel UI
 - `src/extract.js` — room extraction (injected into the page)
 - `src/background.js` — opens the panel on icon click
+
+## Benchmarks
+
+Default model choice and raw results live in [`benchmarks/`](benchmarks/README.md), including a plan for harder synthetic tests.
