@@ -176,7 +176,16 @@ function formatMsg(m) {
   return `${m.ref ? `[#${m.ref}] ` : ""}[${formatTime(m.ts)}] ${m.sender}: ${m.body}`;
 }
 
-function systemPrompt(room, useTools) {
+function toolSentence(names) {
+  const web = names.filter((n) => n === "web_search" || n === "fetch_url");
+  const parts = [
+    ...(web.length ? [`use ${web.join("/")} for current or external facts`] : []),
+    ...(names.includes("get_older_messages") ? ["get_older_messages for earlier room history"] : []),
+  ];
+  return parts.length ? ` You have tools: ${parts.join(" and ")}, only when needed.` : "";
+}
+
+function systemPrompt(room, toolNames) {
   const now = new Date();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
@@ -187,7 +196,7 @@ function systemPrompt(room, useTools) {
     "Answer questions about the conversation in the current room and help the user think about it. " +
     "Be concise. If the answer is not in the provided messages, say so instead of guessing. " +
     "Each room message starts with a reference like [#12]. When you summarize or point to parts of the discussion, cite the relevant messages with these references, e.g. [#12] or [#12-#20], so the user can jump to them. Only cite references that appear in the messages." +
-    (useTools ? " You have tools: use web_search/fetch_url for current or external facts and get_older_messages for earlier room history, only when needed." : "");
+    (toolNames ? toolSentence(toolNames) : "");
   if (!room || room.error) return base;
   const budget = Math.floor(effectiveCtx() * 3 * 0.6);
   const lines = [];
@@ -382,7 +391,7 @@ async function ask(text) {
       let result;
       try {
         result = await streamChat(
-          [{ role: "system", content: systemPrompt(room, useTools) }, ...history],
+          [{ role: "system", content: systemPrompt(room, useTools ? tools.map((t) => t.function.name) : null) }, ...history],
           useTools ? tools : null,
           onText,
         );
