@@ -2,14 +2,32 @@
 
 Chrome side panel for Element Web: a chat with a local Ollama model that sees the room you have open.
 
-## Setup
+## Installation
 
-1. Ollama must accept extension origins:
-   `OLLAMA_ORIGINS=chrome-extension://*` (systemd: `systemctl --user edit ollama`, add under `[Service]`, restart).
-2. `chrome://extensions` → Developer mode → Load unpacked → this directory.
-3. Open Element Web, click the Igor toolbar icon. Pick a model in the dropdown.
+Requirements: Chrome (or a Chromium browser with side panel support), [Ollama](https://ollama.com) running locally with at least one model pulled, and an Element Web account. No build step or dependencies.
 
-If your Element host is not `app.element.io`, click **Allow this site** in the panel (grants host access at runtime).
+1. Get the code:
+   ```sh
+   git clone https://github.com/pmatos/igor.git
+   ```
+2. Pull a model if you have none, for example `ollama pull gemma4:12b`. Pick one that supports tools if you want web search; others fall back to plain chat.
+3. Let Ollama accept requests from the extension, otherwise it answers 403. Set `OLLAMA_ORIGINS=chrome-extension://*` and restart it:
+   - systemd user service: `systemctl --user edit ollama`, add `[Service]` and `Environment=OLLAMA_ORIGINS=chrome-extension://*`, then `systemctl --user restart ollama`
+   - manual: `OLLAMA_ORIGINS='chrome-extension://*' ollama serve`
+4. Load the extension: open `chrome://extensions`, enable **Developer mode**, click **Load unpacked** and select the cloned `igor` directory. Command-line flags like `--load-extension` are ignored by recent branded Chrome, so use this UI.
+5. Open Element Web in a tab and click the Igor toolbar icon. The panel docks beside the page. Choose a model in the dropdown; the room you have open is picked up automatically.
+
+Updating: `git pull`, then click the reload icon on the Igor card in `chrome://extensions`.
+
+Ollama is expected at `http://localhost:11434`; change it under **Settings** in the panel. The extension requests `https://*/*` host access so it works on any Element host and `fetch_url` can read pages; narrow `host_permissions` in `manifest.json` if you only use one host.
+
+First questions in a long room can be slow on modest hardware because the whole context is processed. Lower **Max room messages** in Settings, or use a smaller or MoE model.
+
+## Usage
+
+- **Room context** checkbox: include recent messages of the open room in each question.
+- **Web tools** checkbox: let the model search the web, fetch pages and read older room history.
+- **Clear** resets the conversation; switching rooms keeps the chat but the next question uses the new room.
 
 ## How it works
 
