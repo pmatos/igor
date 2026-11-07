@@ -682,15 +682,28 @@ async function webSearch(query) {
   return `${results.join("\n\n")}\n\n${SNIPPET_NOTE}`;
 }
 
-// This computer and private networks, by address or local-only name. A public
-// name that resolves to a private address is not caught.
+// This computer and private networks, by address, local-only name, or one of the
+// public domains that resolve to the address their name spells out
+// (127.0.0.1.nip.io). Any other public name that resolves to a private address
+// is not caught.
 function isLocalUrl(url) {
   const h = new URL(url).hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
   if (h.includes(":")) return h === "::" || h === "::1" || /^(?:f[cd]|fe[89ab])/.test(h) || h.startsWith("::ffff:");
   if (/^[\d.]+$/.test(h)) {
     return /^(?:0|10|127)\.|^169\.254\.|^192\.168\.|^172\.(?:1[6-9]|2\d|3[01])\.|^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h);
   }
-  return !h.includes(".") || /\.(?:localhost|local|lan|internal|home\.arpa)$/.test(h);
+  return (
+    !h.includes(".") ||
+    /\.(?:localhost|local|lan|internal|home\.arpa)$/.test(h) ||
+    /(?:^|\.)(?:nip\.io|sslip\.io|xip\.io|localtest\.me|lvh\.me|vcap\.me|traefik\.me)$/.test(h)
+  );
+}
+
+// Why fetch_url must not open a URL, or null. Services on this computer and
+// network usually listen on a port of their own; public sites use the default.
+function refusal(url) {
+  if (new URL(url).port) return "it names a port, as services on this computer or network usually do";
+  return isLocalUrl(url) ? "it points to this computer or a local network" : null;
 }
 
 const BLOCKS =
@@ -701,7 +714,7 @@ async function fetchUrl(url) {
   // no cookies: a planted link must not act as the user on sites they are logged in to
   const res = await fetch(url, { credentials: "omit" });
   // a redirect has already been followed; at least keep what it returned from the model
-  if (res.url && isLocalUrl(res.url)) throw new Error("the page redirected to a local network address");
+  if (res.url && refusal(res.url)) throw new Error(`the page redirected to a link that cannot be opened: ${refusal(res.url)}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   let text = await res.text();
   if ((res.headers.get("content-type") ?? "").includes("html")) {
@@ -800,9 +813,10 @@ async function runTool(name, args, ctx) {
       addMsg("error", `Did not open ${url}: only links from your messages, the room or search results can be fetched.`);
       throw new Error("this link does not appear in the user's messages, the room or search results, so it cannot be fetched; ask the user for the link");
     }
-    if (isLocalUrl(url)) {
-      addMsg("error", `Did not open ${url}: it points to this computer or a local network.`);
-      throw new Error("addresses on this computer or a local network cannot be fetched");
+    const why = refusal(url);
+    if (why) {
+      addMsg("error", `Did not open ${url}: ${why}.`);
+      throw new Error(`this link cannot be fetched: ${why}`);
     }
     return fetchUrl(url);
   }
