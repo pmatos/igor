@@ -120,13 +120,27 @@ export async function extractRoom(limit, since = 0, after = null) {
     }
   }
 
+  // Any of Element's signals is enough: the state event may not have arrived
+  // yet, and a miss would treat an encrypted room as a plain one.
+  let encrypted =
+    !!room.currentState?.getStateEvents("m.room.encryption", "") ||
+    !!room.hasEncryptionStateEvent?.() ||
+    !!client.isRoomEncrypted?.(room.roomId);
+  if (!encrypted) {
+    try {
+      encrypted = !!(await client.getCrypto?.()?.isEncryptionEnabledInRoom?.(room.roomId));
+    } catch {
+      // keep what the room said
+    }
+  }
+
   return {
     roomId: room.roomId,
     name: room.name,
     topic: room.currentState?.getStateEvents("m.room.topic", "")?.getContent()
       ?.topic,
     memberCount: room.getJoinedMemberCount?.(),
-    encrypted: !!room.currentState?.getStateEvents("m.room.encryption", ""),
+    encrypted,
     me: client.getUser?.(myId)?.displayName || myId,
     messages,
     truncated,
@@ -157,7 +171,21 @@ export async function searchRoom(roomId, query, limit) {
   let capped = false;
   let back;
 
-  if (!room.currentState?.getStateEvents("m.room.encryption", "") && client.search) {
+  // Any of Element's signals is enough: the state event may not have arrived
+  // yet, and a miss would treat an encrypted room as a plain one.
+  let encrypted =
+    !!room.currentState?.getStateEvents("m.room.encryption", "") ||
+    !!room.hasEncryptionStateEvent?.() ||
+    !!client.isRoomEncrypted?.(room.roomId);
+  if (!encrypted) {
+    try {
+      encrypted = !!(await client.getCrypto?.()?.isEncryptionEnabledInRoom?.(room.roomId));
+    } catch {
+      // keep what the room said
+    }
+  }
+
+  if (!encrypted && client.search) {
     try {
       let next;
       do {
