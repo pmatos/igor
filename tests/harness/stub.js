@@ -81,6 +81,11 @@
   history.replaceState(null, "", location.pathname + location.search + "#/room/" + startRoom);
 
   const store = JSON.parse(localStorage.getItem("harness-store") || "{}");
+  // the fake Element site starts approved, as after clicking Allow this site
+  if (!("sites" in store)) store.sites = ["https://element.example"];
+  // granted host permissions; __denyPermissions = true makes requests fail
+  const perms = new Set(JSON.parse(localStorage.getItem("harness-perms") || '["https://*/*"]'));
+  const covers = (o) => perms.has(o) || (o.startsWith("https://") && perms.has("https://*/*"));
   const persist = () => localStorage.setItem("harness-store", JSON.stringify(store));
   const pick = (keys) => {
     if (keys == null) return { ...store };
@@ -127,7 +132,15 @@
       query: async () => [tab], get: async () => tab, update: async () => tab,
       onActivated: { addListener() {} }, onUpdated: { addListener: (f) => updated.push(f) },
     },
-    permissions: { request: async () => true },
+    permissions: {
+      request: async ({ origins }) => {
+        if (window.__denyPermissions) return false;
+        for (const o of origins) perms.add(o);
+        localStorage.setItem("harness-perms", JSON.stringify([...perms]));
+        return true;
+      },
+      contains: async ({ origins }) => origins.every(covers),
+    },
     scripting: {
       executeScript: async ({ func, args }) => [{ result: JSON.parse(JSON.stringify(await func(...args))) }],
     },

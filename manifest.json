@@ -6,10 +6,9 @@
   "permissions": ["sidePanel", "scripting", "tabs", "storage"],
   "host_permissions": [
     "http://localhost:11434/*",
-    "http://127.0.0.1:11434/*",
-    "https://*/*"
+    "http://127.0.0.1:11434/*"
   ],
-  "optional_host_permissions": ["http://*/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
   "background": { "service_worker": "src/background.js" },
   "side_panel": { "default_path": "src/panel.html" },
   "action": { "default_title": "Igor" }

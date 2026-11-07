@@ -16,7 +16,7 @@
 
   <div id="ctxbar">
     <span id="ctx-info">no room yet</span>
-    <button id="grant" hidden>Allow this site</button>
+    <button id="grant" hidden title="Let Igor read Element rooms on this site">Allow this site</button>
   </div>
 
   <main id="log"></main>
@@ -31,7 +31,7 @@
     </div>
     <div id="send-opts">
       <label title="Send the open room's recent messages with each question; the quick buttons always do"><input type="checkbox" id="use-ctx" checked> Room context</label>
-      <label title="Let the model search the web and fetch pages"><input type="checkbox" id="use-tools" checked> Web tools</label>
+      <label title="Let the model search the web and fetch pages; turning it on asks for access to all sites"><input type="checkbox" id="use-tools" checked> Web tools</label>
     </div>
   </form>
 
@@ -49,6 +49,8 @@
     <label>Days to keep part summaries on disk <input id="part-days" type="number" min="0" step="1"></label>
     <small>Counted from their last use. 0 keeps them in memory only, until Chrome restarts; encrypted rooms' summaries always stay in memory.</small>
     <button type="button" id="forget">Forget cached part summaries</button>
+    <small id="sites-note"></small>
+    <button type="button" id="forget-sites">Forget approved Element sites</button>
   </details>
 
   <script type="module" src="panel.js"></script>

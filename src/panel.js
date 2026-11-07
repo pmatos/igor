@@ -17,6 +17,8 @@ const DEFAULTS = {
   buttons: DEFAULT_BUTTONS,
   partDays: 60,
   keepAlive: 30,
+  // origins the user approved as their Element
+  sites: [],
 };
 
 // Benchmarked on a Ryzen AI 9 iGPU: MoE 26b-a4b is ~2.5x faster than dense 12b at equal recall/tool-use quality
@@ -53,7 +55,10 @@ async function loadCfg() {
   $("num-ctx").value = cfg.numCtx;
   $("max-msgs").value = cfg.maxMsgs;
   $("use-ctx").checked = cfg.useCtx;
+  // access to every site is optional now; without it the web tools cannot work
+  if (cfg.useTools && !(await chrome.permissions.contains(WEB_ACCESS))) save({ useTools: false });
   $("use-tools").checked = cfg.useTools;
+  showSites();
   $("buttons").value = cfg.buttons;
   $("part-days").value = cfg.partDays;
   $("keep-alive").value = cfg.keepAlive;
@@ -336,9 +341,20 @@ async function activeTab() {
   return tab;
 }
 
+const WEB_ACCESS = { origins: ["https://*/*"] };
+
+function showSites() {
+  $("sites-note").textContent = cfg.sites.length ? `Reads rooms on ${cfg.sites.join(", ")}.` : "No Element site approved yet.";
+}
+
 async function runInTab(func, args) {
   const tab = await activeTab();
   if (!tab?.id || !/^https?:/.test(tab.url ?? "")) return { error: "no-tab" };
+  // Only on approved Element sites: anywhere else the page could pose as Element and
+  // feed Igor messages, receive its room searches, or notice it. Host access alone
+  // is no guard, since the web tools need it for every site.
+  const origin = new URL(tab.url).origin;
+  if (!cfg.sites.includes(origin)) return { error: "not-approved", origin };
   try {
     const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func, args });
     const out = res?.result ?? { error: "empty" };
@@ -378,13 +394,14 @@ async function loadRecent() {
 async function refreshInfo() {
   // no messages: only the room's name, members and read marker, without paging history
   const r = await getRoom(0);
-  el.grant.hidden = r.error !== "inject";
+  el.grant.hidden = r.error !== "inject" && r.error !== "not-approved";
   el.grant.dataset.origin = r.origin ?? "";
   roomReady = !r.error;
   for (const b of [...$("quick").children, $("search")]) b.disabled = !roomReady;
   if (roomReady && r.roomId !== seen?.roomId) seen = { roomId: r.roomId, readTs: r.readTs };
   if (roomReady && r.roomId !== chat.roomId) await switchChat(r.roomId);
-  if (r.error === "inject") el.info.textContent = `no access to ${r.origin}`;
+  if (r.error === "not-approved") el.info.textContent = `${r.origin} is not an approved Element site`;
+  else if (r.error === "inject") el.info.textContent = `no access to ${r.origin}`;
   else if (r.error === "no-client") el.info.textContent = "not an Element tab (no Matrix client)";
   else if (r.error === "no-room") el.info.textContent = "open a room";
   else if (r.error) el.info.textContent = r.error;
@@ -1223,7 +1240,11 @@ $("clear").addEventListener("click", () => {
   saveChat();
 });
 $("use-ctx").addEventListener("change", (e) => save({ useCtx: e.target.checked }));
-$("use-tools").addEventListener("change", (e) => save({ useTools: e.target.checked }));
+$("use-tools").addEventListener("change", async (e) => {
+  // reading pages and searching need access to every site, asked for only now
+  if (e.target.checked && !(await chrome.permissions.request(WEB_ACCESS))) e.target.checked = false;
+  save({ useTools: e.target.checked });
+});
 $("base-url").addEventListener("change", (e) => {
   save({ baseUrl: e.target.value.replace(/\/+$/, "") });
   loadModels();
@@ -1243,7 +1264,15 @@ el.log.addEventListener("click", async (ev) => {
 });
 el.grant.addEventListener("click", async () => {
   const origin = el.grant.dataset.origin;
-  if (origin && (await chrome.permissions.request({ origins: [`${origin}/*`] }))) refreshInfo();
+  if (!origin || !(await chrome.permissions.request({ origins: [`${origin}/*`] }))) return;
+  save({ sites: [...new Set([...cfg.sites, origin])] });
+  showSites();
+  refreshInfo();
+});
+$("forget-sites").addEventListener("click", () => {
+  save({ sites: [] });
+  showSites();
+  refreshInfo();
 });
 
 chrome.tabs.onActivated.addListener(refreshInfo);

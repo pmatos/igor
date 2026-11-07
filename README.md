@@ -18,11 +18,11 @@ Requirements: Chrome (or a Chromium browser with side panel support), [Ollama](h
    - manual: `OLLAMA_ORIGINS='chrome-extension://<Igor's ID>' ollama serve`
 
    Don't use `chrome-extension://*`: it lets every extension you install use Ollama, including its commands to delete and download models. If Igor cannot reach Ollama, the panel shows the exact value to set.
-5. Open Element Web in a tab and click the Igor toolbar icon. The panel docks beside the page. Choose a model in the dropdown; the room you have open is picked up automatically.
+5. Open Element Web in a tab and click the Igor toolbar icon. The panel docks beside the page. The first time, click **Allow this site** in the panel: Igor only reads rooms on Element sites you approve. Choose a model in the dropdown; the room you have open is picked up automatically.
 
 Updating: `git pull`, then click the reload icon on the Igor card in `chrome://extensions`.
 
-Ollama is expected at `http://localhost:11434`; change it under **Settings** in the panel. The extension requests `https://*/*` host access so it works on any Element host and `fetch_url` can read pages; narrow `host_permissions` in `manifest.json` if you only use one host.
+Ollama is expected at `http://localhost:11434`; change it under **Settings** in the panel. Igor asks for access one Element site at a time (**Allow this site**; **Forget approved Element sites** in Settings removes them), and for access to all sites only when you turn on **Web tools**, which need it to search and read pages. It never runs anything in a site you have not approved as your Element, so other sites cannot pose as Element or notice Igor.
 
 First questions in a long room can be slow on modest hardware because the whole context is processed. Lower **Max room messages** in Settings, or use a smaller or MoE model. Follow-up questions are faster: Igor keeps the start of each request the same, so Ollama reuses its work on the room, and asks Ollama to keep the model loaded for 30 minutes after an answer instead of its default 5 (**Keep the model loaded** in Settings). A loaded model holds its memory the whole time.
 
