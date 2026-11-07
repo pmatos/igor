@@ -804,6 +804,8 @@ async function streamChat(messages, tools, onText) {
       think: false,
       // Ollama's default unloads after 5 idle minutes; reloading costs seconds and the reusable work
       keep_alive: `${cfg.keepAlive}m`,
+      // refuse a request that does not fit instead of silently keeping only its end
+      truncate: false,
       // sampled answers differ run to run, sometimes wrongly; the benchmarks also use 0
       options: { num_ctx: effectiveCtx(), temperature: 0 },
       messages,
@@ -812,8 +814,14 @@ async function streamChat(messages, tools, onText) {
   });
   if (!res.ok) {
     const body = await res.text();
-    const err = new Error(`HTTP ${res.status}: ${body}`);
+    const big = body.match(/request \((\d+) tokens\) exceeds the available context size \((\d+) tokens\)/);
+    const err = new Error(
+      big
+        ? `this request needs ${big[1]} tokens, more than the ${big[2]}-token context window, so Ollama refused it. Clear the chat, lower Max room messages, or raise the context window in Settings.`
+        : `HTTP ${res.status}: ${body}`,
+    );
     err.noTools = /does not support tools/i.test(body);
+    err.tooLong = !!big;
     throw err;
   }
 
@@ -822,8 +830,9 @@ async function streamChat(messages, tools, onText) {
   let buf = "";
   let content = "";
   const toolCalls = [];
-  // An oversized request gets no error: Ollama keeps only its end, and its token
-  // count falls far below the size sent (chat text runs 2.4-2.9 chars per token).
+  // Fallback for Ollama versions that ignore truncate: they keep only the end of an
+  // oversized request, and its token count falls far below the size sent (chat
+  // text runs 2.4-2.9 chars per token). Mild overflows slip through this check.
   const sent = messages.reduce((n, m) => n + (m.content?.length ?? 0), 0);
   let cut = false;
   for (;;) {
@@ -895,6 +904,7 @@ async function ask(text, opts = null) {
   cutAt = 0;
   // Clear may swap the chat mid-answer; the rest of this answer stays with the old one
   const { history } = chat;
+  const before = history.length;
   const shown = addMsg("user", text);
   noteUrls(text);
   const question = { role: "user", content: text };
@@ -1024,6 +1034,8 @@ async function ask(text, opts = null) {
     addMsg("error", `Stopped after ${MAX_TOOL_ROUNDS} tool rounds without a final answer.`);
   } catch (e) {
     if (e.name !== "AbortError") addMsg("error", `Request failed: ${e.message}`);
+    // otherwise every later question would carry this one and be refused too
+    if (e.tooLong) history.length = before;
   } finally {
     // the previous answer's web results go now; this answer's stay for one more question
     if (answered && chat.history === history) {
