@@ -278,9 +278,11 @@ async function runInTab(func, args) {
   // is no guard, since the web tools need it for every site.
   const origin = new URL(tab.url).origin;
   if (!cfg.sites.includes(origin)) return { error: "not-approved", origin };
+  // each injected function ends with an `origins` parameter and checks it before anything else
   try {
-    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func, args });
+    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func, args: [...args, cfg.sites] });
     const out = res?.result ?? { error: "empty" };
+    if (out.error === "not-approved") return out;
     if (!out.error) {
       const u = new URL(tab.url);
       out.base = u.origin + u.pathname + u.search;

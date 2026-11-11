@@ -115,4 +115,14 @@ function makeWorld({ days, everyMin, members = 3, readIdx = null, extra = [] }) 
   assert.ok(r.messages.every((m) => !!m.toMe === (m.sender !== "Wanda")));
   console.log("direct chat flags OK");
 }
+// the tab may have moved to a site that is not approved
+{
+  makeWorld({ days: 1, everyMin: 60 });
+  const here = globalThis.location.hash;
+  globalThis.location = { hash: here, origin: "https://evil.example" };
+  assert.deepEqual(await extractRoom(10, 0, null, ["https://chat.example.org"]), { error: "not-approved", origin: "https://evil.example" });
+  globalThis.location = { hash: here, origin: "https://chat.example.org" };
+  assert.ok(!(await extractRoom(10, 0, null, ["https://chat.example.org"])).error);
+  console.log("origin check OK");
+}
 console.log("ALL OK");

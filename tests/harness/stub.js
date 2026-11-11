@@ -142,7 +142,8 @@
       contains: async ({ origins }) => origins.every(covers),
     },
     scripting: {
-      executeScript: async ({ func, args }) => [{ result: JSON.parse(JSON.stringify(await func(...args))) }],
+      // the function runs in this page, so its origin check sees the harness origin, not the fake Element site
+      executeScript: async ({ func, args }) => [{ result: JSON.parse(JSON.stringify(await func(...args.slice(0, -1), null))) }],
     },
   };
 

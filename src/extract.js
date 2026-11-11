@@ -1,8 +1,12 @@
 // Injected into the Element tab with world: "MAIN". Must be self-contained:
 // it is serialized by chrome.scripting.executeScript.
+// origins, when given, is the list of approved sites: the tab may have navigated
+// since the panel checked it, so the function checks where it landed before using
+// its other arguments.
 // With after (an event id), only events newer than it are fetched; the caller
 // keeps the older ones from its previous call.
-export async function extractRoom(limit, since = 0, after = null) {
+export async function extractRoom(limit, since = 0, after = null, origins = null) {
+  if (origins && !origins.includes(location.origin)) return { error: "not-approved", origin: location.origin };
   const peg = window.mxMatrixClientPeg;
   const client =
     (peg && (peg.safeGet?.() ?? peg.get?.() ?? peg.matrixClient)) || null;
@@ -152,7 +156,8 @@ export async function extractRoom(limit, since = 0, after = null) {
 // Also injected, so also self-contained. The server's search index covers the
 // whole history but only of unencrypted rooms; encrypted history is paged and
 // matched here, newest first, up to a page cap.
-export async function searchRoom(roomId, query, limit) {
+export async function searchRoom(roomId, query, limit, origins = null) {
+  if (origins && !origins.includes(location.origin)) return { error: "not-approved", origin: location.origin };
   const peg = window.mxMatrixClientPeg;
   const client =
     (peg && (peg.safeGet?.() ?? peg.get?.() ?? peg.matrixClient)) || null;
