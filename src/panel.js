@@ -118,22 +118,25 @@ function noteUrls(text) {
   }
 }
 
-function linkRefs(html) {
-  return html.replace(REF_GROUP, (group) =>
-    group.replace(/#?(\d+)/g, (m, n) => {
+function mapRefs(text, fmt, unbracket = false) {
+  return text.replace(REF_GROUP, (group) =>
+    (unbracket ? group.slice(1, -1) : group).replace(/#?(\d+)/g, (m, n) => {
       const r = chat.refsByNum.get(Number(n));
-      if (!r) return m;
-      const title = escapeHtml(`${r.sender}, ${formatTime(r.ts)}`);
-      return `<a href="${escapeHtml(r.url)}" data-ref="${r.n}" title="${title}" target="_blank" rel="noopener">#${r.n}</a>`;
+      return r ? fmt(r) : m;
     }),
   );
 }
 
+function linkRefs(html) {
+  return mapRefs(html, (r) => {
+    const title = escapeHtml(`${r.sender}, ${formatTime(r.ts)}`);
+    return `<a href="${escapeHtml(r.url)}" data-ref="${r.n}" title="${title}" target="_blank" rel="noopener">#${r.n}</a>`;
+  });
+}
+
 // Cached part summaries outlive the panel's [#N] numbering, so they store event ids
 function refsToIds(text) {
-  return text.replace(REF_GROUP, (group) =>
-    group.replace(/#?(\d+)/g, (m, n) => (chat.refsByNum.has(Number(n)) ? `#{${chat.refsByNum.get(Number(n)).id}}` : m)),
-  );
+  return mapRefs(text, (r) => `#{${r.id}}`);
 }
 
 function idsToRefs(text) {
@@ -141,12 +144,7 @@ function idsToRefs(text) {
 }
 
 function toMarkdown(text) {
-  return text.replace(REF_GROUP, (group) =>
-    group.slice(1, -1).replace(/#?(\d+)/g, (m, n) => {
-      const r = chat.refsByNum.get(Number(n));
-      return r ? `[#${r.n}](${r.url})` : m;
-    }),
-  );
+  return mapRefs(text, (r) => `[#${r.n}](${r.url})`, true);
 }
 
 function inlineMarkdown(s) {

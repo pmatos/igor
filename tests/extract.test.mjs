@@ -2,19 +2,7 @@ import assert from "node:assert/strict";
 // node tests/extract.test.mjs [path/to/extract.js]
 const { extractRoom } = await import(process.argv[2] ? new URL(process.argv[2], `file://${process.cwd()}/`).href : "../src/extract.js");
 
-const ME = "@wanda:example.org";
-const NAMES = { [ME]: "Wanda", "@ana:example.org": "Ana", "@bo:example.org": "Bo" };
-class Ev {
-  constructor(o) { this.o = o; }
-  getType() { return this.o.type ?? "m.room.message"; }
-  isRedacted() { return false; }
-  isDecryptionFailure() { return false; }
-  getContent() { return this.o.content; }
-  getTs() { return this.o.origin_server_ts; }
-  getId() { return this.o.event_id; }
-  getSender() { return this.o.sender; }
-  get sender() { return { name: NAMES[this.o.sender] }; }
-}
+import { ME, NAMES, Ev } from "./fake-event.mjs";
 
 function makeWorld({ days, everyMin, members = 3, readIdx = null, extra = [] }) {
   const now = Date.now();
