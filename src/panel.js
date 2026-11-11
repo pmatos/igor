@@ -189,8 +189,6 @@ function saveChat() {
   });
 }
 
-const size = (ms) => ms.reduce((n, m) => n + formatMsg(m).length, 0);
-
 async function switchChat(roomId) {
   if (chat.roomId === roomId) return;
   const key = `chat:${roomId}`;
