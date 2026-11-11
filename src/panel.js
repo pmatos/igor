@@ -18,6 +18,7 @@ const DEFAULTS = {
   buttons: DEFAULT_BUTTONS,
   partDays: 60,
   keepAlive: 30,
+  confirmSearch: true,
   // origins the user approved as their Element
   sites: [],
 };
@@ -63,6 +64,7 @@ async function loadCfg() {
   $("buttons").value = cfg.buttons;
   $("part-days").value = cfg.partDays;
   $("keep-alive").value = cfg.keepAlive;
+  $("confirm-search").checked = cfg.confirmSearch;
 }
 
 function save(patch) {
@@ -642,11 +644,32 @@ async function findMessages(roomId, query) {
 const MAX_QUERY = 150;
 const MAX_SEARCHES = 5;
 
+// Once room messages are in the chat, a steered model can paste some of them into a
+// query, which goes to Brave. The user sees the query before it is sent.
+function confirmSearch(query) {
+  return new Promise((resolve) => {
+    const div = notice(`Search the web for: ${query}`, "tool");
+    const done = (ok) => {
+      div.remove();
+      resolve(ok);
+    };
+    for (const [label, ok] of [["Search", true], ["Skip", false]]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.addEventListener("click", () => done(ok));
+      div.append(" ", b);
+    }
+    abort.signal.addEventListener("abort", () => done(false), { once: true });
+  });
+}
+
 async function runTool(name, args, ctx) {
   if (name === "web_search") {
     const query = String(args?.query ?? "");
     if (query.length > MAX_QUERY) throw new Error(`queries are limited to ${MAX_QUERY} characters; search with a few keywords`);
     if (++ctx.searches > MAX_SEARCHES) throw new Error(`at most ${MAX_SEARCHES} searches per answer; answer with what you have`);
+    if (cfg.confirmSearch && chat.refs.size && !(await confirmSearch(query))) throw new Error("the user did not allow this search; answer without it");
     return webSearch(query);
   }
   if (name === "fetch_url") {
@@ -1057,6 +1080,7 @@ $("keep-alive").addEventListener("change", (e) => {
   save({ keepAlive: minutes >= 1 ? minutes : DEFAULTS.keepAlive });
   e.target.value = cfg.keepAlive;
 });
+$("confirm-search").addEventListener("change", (e) => save({ confirmSearch: e.target.checked }));
 $("part-days").addEventListener("change", (e) => {
   const days = Math.floor(Number(e.target.value));
   save({ partDays: e.target.value !== "" && days >= 0 ? days : DEFAULTS.partDays });

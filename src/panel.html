@@ -46,6 +46,8 @@
       <textarea id="buttons" rows="6" spellcheck="false"></textarea></label>
     <small>Period: empty for the recent messages, <code>unread</code> (since your read marker) or days like <code>7d</code>; add <code>mentions</code> to keep only messages addressed to you. <code>{period}</code> in the prompt becomes the time span. Empty the box to restore the defaults.</small>
     <small id="buttons-note"></small>
+    <label><input type="checkbox" id="confirm-search"> Ask before the model searches the web</label>
+    <small>Once room messages are in the chat, search queries are shown first. Searches go to Brave, a third party, and a model steered by room text could put messages into a query.</small>
     <label>Days to keep part summaries on disk <input id="part-days" type="number" min="0" step="1"></label>
     <small>Counted from their last use. 0 keeps them in memory only, until Chrome restarts; encrypted rooms' summaries always stay in memory.</small>
     <button type="button" id="forget">Forget cached part summaries</button>
