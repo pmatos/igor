@@ -1,5 +1,5 @@
 import { extractRoom, searchRoom } from "./extract.js";
-import { escapeHtml, formatMsg, formatTime, markdownToHtml, messagesSize, normUrl, parseButtons, refusal, splitParts } from "./lib.js";
+import { escapeHtml, formatMsg, formatTime, markdownToHtml, messagesSize, normUrl, parseButtons, refusal, splitParts, stripHandlers } from "./lib.js";
 
 const DEFAULT_BUTTONS = `Unread | unread | Summarize what I missed {period}: main topics, decisions, open questions and anything that needs my attention.
 Day | 1d | Summarize this room's discussion {period}: main topics, decisions, open questions and action items.
@@ -513,9 +513,7 @@ const TOOLS = [
 ];
 
 function parseHtml(html) {
-  // inline on* handlers in fetched pages trip the extension CSP even in an inert DOMParser document
-  const clean = html.replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
-  return new DOMParser().parseFromString(clean, "text/html");
+  return new DOMParser().parseFromString(stripHandlers(html), "text/html");
 }
 
 // without it the model answers from the snippets and almost never opens a page

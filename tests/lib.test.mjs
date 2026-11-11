@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-const { escapeHtml, isLocalUrl, markdownToHtml, messagesSize, normUrl, parseButtons, refusal, splitParts } = await import("../src/lib.js");
+const { escapeHtml, isLocalUrl, markdownToHtml, messagesSize, normUrl, parseButtons, refusal, splitParts, stripHandlers } = await import("../src/lib.js");
 
 for (const u of [
   "http://127.0.0.1/", "http://2130706433/", "http://0x7f.1/", "http://[::1]/", "http://[::ffff:127.0.0.1]/",
@@ -45,4 +45,13 @@ for (const p of parts) assert.ok(messagesSize(p) <= 2000 || p.length === 1);
 const again = splitParts(msgs.slice(0, 40), 2000);
 assert.deepEqual(again[0].map((m) => m.id), parts[0].map((m) => m.id), "older parts stay the same when newer messages are added");
 console.log("splitParts OK");
+assert.equal(stripHandlers("<p>set one = 5 and onion = 7</p>"), "<p>set one = 5 and onion = 7</p>");
+assert.equal(stripHandlers('<a href="/x" onclick="go()" class=a>k</a>'), '<a href="/x" class=a>k</a>');
+assert.equal(stripHandlers("<img src=x onerror=alert(1)>text onload = y"), "<img src=x>text onload = y");
+assert.equal(stripHandlers('<a title="x>y" onclick="go()">t</a>'), '<a title="x>y">t</a>');
+assert.equal(stripHandlers('<a title="a onclick=b" href=u>t</a>'), '<a title="a onclick=b" href=u>t</a>');
+assert.equal(stripHandlers("<img/onerror=alert(1)>"), "<img>");
+assert.equal(stripHandlers('<a href="x"onclick="go()">t</a>'), '<a href="x">t</a>');
+assert.equal(stripHandlers("<one onx=1>a < set one = 5 > c</one>"), "<one>a < set one = 5 > c</one>");
+console.log("stripHandlers OK");
 console.log("ALL OK");

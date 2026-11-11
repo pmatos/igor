@@ -178,3 +178,14 @@ export function parseButtons(text) {
   }
   return { buttons, bad };
 }
+
+// Inline on* handlers in fetched pages trip the extension CSP even in an inert
+// DOMParser document, so drop them. Only inside tags: page text such as
+// "set one = 5" must survive.
+export function stripHandlers(html) {
+  return html.replace(/(<[a-z][^\s/>]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/gi, (tag, name, rest) =>
+    /on[a-z]+\s*=/i.test(rest)
+      ? `${name}${rest.replace(/[\s/]*([^\s"'<>/=]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]*))?/g, (attr, k) => (/^on[a-z]+$/i.test(k) ? "" : attr))}>`
+      : tag,
+  );
+}
