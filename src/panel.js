@@ -1,5 +1,5 @@
 import { extractRoom, searchRoom } from "./extract.js";
-import { escapeHtml, formatMsg, formatTime, markdownToHtml, normUrl, parseButtons, refusal, splitParts } from "./lib.js";
+import { escapeHtml, formatMsg, formatTime, markdownToHtml, messagesSize, normUrl, parseButtons, refusal, splitParts } from "./lib.js";
 
 const DEFAULT_BUTTONS = `Unread | unread | Summarize what I missed {period}: main topics, decisions, open questions and anything that needs my attention.
 Day | 1d | Summarize this room's discussion {period}: main topics, decisions, open questions and action items.
@@ -416,7 +416,7 @@ function roomWindow(messages) {
   const start = messages.findIndex((m) => m.id === chat.anchor);
   if (start >= 0) {
     const shown = withReplies(messages.slice(start));
-    if (size(shown) <= budget) return shown;
+    if (messagesSize(shown) <= budget) return shown;
   }
   const recent = withReplies(messages.slice(-Math.ceil(cfg.maxMsgs * 0.75)));
   const shown = withReplies(recent.slice(recent.length - fitLines(recent, budget * 0.75).length));

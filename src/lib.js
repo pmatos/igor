@@ -106,10 +106,15 @@ function runsBy(messages, key) {
   return runs;
 }
 
+export function messagesSize(messages) {
+  return messages.reduce((n, m) => n + formatMsg(m).length, 0);
+}
+
 // Calendar weeks, then days, then runs that fit: older parts keep the same
 // messages from one run to the next, so their summaries can be cached.
 export function splitParts(messages, budget) {
-  const size = (ms) => ms.reduce((n, m) => n + formatMsg(m).length, 0);
+  const lens = new Map(messages.map((m) => [m, formatMsg(m).length]));
+  const size = (ms) => ms.reduce((n, m) => n + lens.get(m), 0);
   const keys = [weekStart, (m) => formatTime(m.ts).slice(0, 10)];
   const split = (ms, level) => {
     if (size(ms) <= budget) return [ms];
@@ -117,7 +122,7 @@ export function splitParts(messages, budget) {
     const out = [[]];
     let used = 0;
     for (const m of ms) {
-      const len = formatMsg(m).length;
+      const len = lens.get(m);
       if (used + len > budget && out.at(-1).length) {
         out.push([]);
         used = 0;
