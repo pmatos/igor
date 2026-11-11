@@ -60,7 +60,7 @@ The model can call (toggle "Web tools" in the panel; models without tool support
 - `get_older_messages` — back-paginates the room via the Matrix client for history beyond the initial window
 - `search_room` — finds messages containing all the given words. Unencrypted rooms use the homeserver's search index, which covers the whole history; encrypted rooms are not indexed, so the newest 3000 events are paged and matched locally. The result always says how far back it looked, so the model does not mistake "not found in the last month" for "never discussed".
 
-The extension requests `https://*/*` host access so `fetch_url` and Element on any host work.
+`fetch_url` and `web_search` need access to all sites, which Igor asks for only when you turn on **Web tools**. Element needs only the site you approve with **Allow this site**.
 
 ## Layout
 
