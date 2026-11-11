@@ -143,7 +143,7 @@ export function isLocalUrl(url) {
   const h = new URL(url).hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
   if (h.includes(":")) return h === "::" || h === "::1" || /^(?:f[cd]|fe[89ab])/.test(h) || h.startsWith("::ffff:");
   if (/^[\d.]+$/.test(h)) {
-    return /^(?:0|10|127)\.|^169\.254\.|^192\.168\.|^172\.(?:1[6-9]|2\d|3[01])\.|^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h);
+    return /^(?:0|10|127)\.|^169\.254\.|^192\.0\.0\.|^198\.1[89]\.|^192\.168\.|^172\.(?:1[6-9]|2\d|3[01])\.|^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h);
   }
   return (
     !h.includes(".") ||

@@ -1137,7 +1137,9 @@ el.grant.addEventListener("click", async () => {
   showSites();
   refreshInfo();
 });
-$("forget-sites").addEventListener("click", () => {
+$("forget-sites").addEventListener("click", async () => {
+  // optional permissions can be given back; access to all sites, if granted, stays
+  await chrome.permissions.remove({ origins: cfg.sites.map((o) => `${o}/*`) }).catch(() => {});
   save({ sites: [] });
   showSites();
   refreshInfo();

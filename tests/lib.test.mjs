@@ -6,10 +6,10 @@ for (const u of [
   "http://localhost/", "http://localhost./", "http://foo.localhost/", "http://192.168.1.5/", "http://172.20.0.1/",
   "http://10.0.0.1/", "http://100.64.1.1/", "http://169.254.169.254/latest/meta-data", "http://printer.local/",
   "http://metadata.google.internal/", "http://127.0.0.1.nip.io/", "http://0/", "http://[fd00::1]/", "http://[fe80::1]/",
-  "http://myhost/",
+  "http://myhost/", "http://198.18.0.1/", "http://198.19.255.1/", "http://192.0.0.1/",
 ]) assert.ok(isLocalUrl(u), `${u} should be local`);
 
-for (const u of ["http://example.com/", "https://news.example.org/a?b=1", "http://8.8.8.8/", "https://sub.nip.io.example.com/"]) {
+for (const u of ["http://example.com/", "https://news.example.org/a?b=1", "http://8.8.8.8/", "http://198.20.0.1/", "http://192.0.1.1/", "https://sub.nip.io.example.com/"]) {
   assert.equal(refusal(u), null, `${u} should be allowed`);
 }
 assert.match(refusal("https://example.com:8443/"), /port/);
