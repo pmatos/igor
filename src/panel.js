@@ -1138,11 +1138,12 @@ el.grant.addEventListener("click", async () => {
   refreshInfo();
 });
 $("forget-sites").addEventListener("click", async () => {
-  // optional permissions can be given back; access to all sites, if granted, stays
-  await chrome.permissions.remove({ origins: cfg.sites.map((o) => `${o}/*`) }).catch(() => {});
+  const origins = cfg.sites.map((o) => `${o}/*`);
   save({ sites: [] });
   showSites();
   refreshInfo();
+  // optional permissions can be given back; access to all sites, if granted, stays
+  if (origins.length) await chrome.permissions.remove({ origins }).catch(() => {});
 });
 
 chrome.tabs.onActivated.addListener(refreshInfo);
