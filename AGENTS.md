@@ -7,6 +7,7 @@ Igor is a Manifest V3 Chrome extension: a side-panel chat with a local Ollama mo
 - `manifest.json` — permissions, side panel, service worker
 - `src/background.js` — opens the side panel on toolbar click
 - `src/extract.js` — `extractRoom(limit, since)` and `searchRoom(roomId, query, limit)`; injected into the Element tab with `world: "MAIN"`, so each must stay self-contained (no imports, no shared helpers, no closures over module state)
+- `src/lib.js` — pure functions of the panel (address guard, markdown, button parsing, part splitting); no DOM or `chrome.*`, so Node tests can import it. Put new logic that needs a test here
 - `src/panel.{html,css,js}` — chat UI, model picker, Ollama streaming, tool-call loop, web tools
 - `tests/` — Node tests for the injected functions, and a browser harness that runs the real panel against fakes
 
@@ -14,7 +15,7 @@ Igor is a Manifest V3 Chrome extension: a side-panel chat with a local Ollama mo
 
 - No inline `<script>` (MV3 CSP), no remote code, no build tooling.
 - Comment sparingly; only non-obvious code.
-- Render model output by escaping first, then applying the tiny markdown pass (`renderMarkdown`: code, headings, lists, bold, italics). Never insert raw model or page text as HTML, and never turn a URL the model wrote into a link: one click would send whatever the model put in it.
+- Render model output by escaping first, then applying the tiny markdown pass (`markdownToHtml` in `src/lib.js`: code, headings, lists, bold, italics; `linkRefs` in `panel.js` then links `#N` message references). Never insert raw model or page text as HTML, and never turn a URL the model wrote into a link: one click would send whatever the model put in it.
 - Never commit room contents, tokens, or personal hostnames. Test output from real rooms stays out of the repo.
 
 ## Things that will bite you
@@ -43,7 +44,7 @@ Igor is a Manifest V3 Chrome extension: a side-panel chat with a local Ollama mo
 
 ## Testing
 
-- `node tests/extract.test.mjs` and `node tests/search.test.mjs` run `extractRoom` and `searchRoom` against a fake Matrix client (pass a path to test another copy of `extract.js`).
+- `node --test tests/*.test.mjs` runs all Node tests, as CI does on every PR (`.github/workflows/ci.yml`). `tests/lib.test.mjs` covers `src/lib.js`. `node tests/extract.test.mjs` and `node tests/search.test.mjs` run `extractRoom` and `searchRoom` against a fake Matrix client (pass a path to test another copy of `extract.js`).
 - `python3 tests/harness/serve.py [port]` serves `src/` with `tests/harness/stub.js` injected into `panel.html`: fake `chrome.*` APIs (`storage.session` survives a reload, like a panel reopen), a fake Element client with an unencrypted room (server search) and an encrypted one (`!enc:example.org`), and a fake Ollama that answers with what it was given. Some questions script it: `search <words>`, `fetch <url>`, `web <query>` (search, then open the first result), `open the room link`, `leak` (builds a URL out of room messages, as injected text would), `markdown` (an answer with every formatting case) and `overflow` (reports the token count of a cut request); `__fetched` lists the pages opened. The fake Element site starts approved and `https://*/*` granted (`harness-perms` in localStorage); `__denyPermissions = true` makes permission requests fail. `__post(body)` adds a message to the unencrypted room, `__redact(id)` deletes one, and `__tabUpdated(id, change)` fires a tab update for any tab id. Open `http://localhost:8765/src/panel.html` and drive the real panel; `__switchRoom(id)` moves the fake tab, `__chats` holds the requests sent to Ollama. It checks plumbing, not answer quality.
 
 Against real Element, manually:
