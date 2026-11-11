@@ -92,7 +92,6 @@ function registerRefs(room) {
 // fetch_url only opens links the user wrote, the room's messages hold or a
 // search returned. Room text can tell the model to fetch a URL it builds
 // itself, with the room's messages in it.
-
 function noteUrls(text) {
   for (const raw of text.match(/https?:\/\/[^\s<>"'`]+/gi) ?? []) {
     for (const u of [raw, raw.replace(/[.,;:!?)\]}*_]+$/, "")]) {

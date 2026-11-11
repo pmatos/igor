@@ -29,7 +29,7 @@ function inlineMarkdown(s) {
 // plain text: a click on one would send whatever the model put in the URL.
 export function markdownToHtml(text) {
   const blocks = [];
-  const src = escapeHtml(text).replace(/```(?:\w*)\n?([\s\S]*?)```/g, (_, code) => `\0${blocks.push(code) - 1}\0`);
+  const src = escapeHtml(text.replaceAll("\0", "")).replace(/```(?:\w*)\n?([\s\S]*?)```/g, (_, code) => `\0${blocks.push(code) - 1}\0`);
   const out = [];
   let para = [];
   const lists = [];
@@ -73,8 +73,7 @@ export function markdownToHtml(text) {
   }
   flush();
   closeLists();
-  const html = out.join("").replace(/\0(\d+)\0/g, (_, i) => `<pre><code>${blocks[i]}</code></pre>`);
-  return html;
+  return out.join("").replace(/\0(\d+)\0/g, (_, i) => `<pre><code>${blocks[i]}</code></pre>`);
 }
 
 function replyMarker(m) {

@@ -25,6 +25,7 @@ assert.ok(!md.includes("<script"), "raw tags are escaped");
 assert.ok(!md.includes("<a "), "model-written links stay text");
 assert.ok(md.includes("<li>one") && md.includes("<b>bold</b>") && md.includes("<i>it</i>") && md.includes("<code>code &lt;b&gt;</code>"));
 assert.ok(md.includes("<pre><code>fenced &lt;i&gt;\n</code></pre>"));
+assert.ok(!markdownToHtml("\0" + "0" + "\0").includes("undefined"), "forged placeholders are dropped");
 console.log("markdown OK");
 
 const { buttons, bad } = parseButtons("Day | 1d | Summarize {period}\nMentions | 7d mentions | Which need me?\nUnread | unread | What did I miss?\nbroken | 3x | prompt\nno prompt | 1d\n\n");
