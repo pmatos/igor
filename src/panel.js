@@ -646,13 +646,16 @@ const MAX_SEARCHES = 5;
 
 // Once room messages are in the chat, a steered model can paste some of them into a
 // query, which goes to Brave. The user sees the query before it is sent.
-function confirmSearch(query) {
+function confirmSearch(query, signal) {
   return new Promise((resolve) => {
+    if (signal.aborted) return resolve(false);
     const div = notice(`Search the web for: ${query}`, "tool");
     const done = (ok) => {
+      signal.removeEventListener("abort", onAbort);
       div.remove();
       resolve(ok);
     };
+    const onAbort = () => done(false);
     for (const [label, ok] of [["Search", true], ["Skip", false]]) {
       const b = document.createElement("button");
       b.type = "button";
@@ -660,7 +663,7 @@ function confirmSearch(query) {
       b.addEventListener("click", () => done(ok));
       div.append(" ", b);
     }
-    abort.signal.addEventListener("abort", () => done(false), { once: true });
+    signal.addEventListener("abort", onAbort);
   });
 }
 
@@ -669,7 +672,7 @@ async function runTool(name, args, ctx) {
     const query = String(args?.query ?? "");
     if (query.length > MAX_QUERY) throw new Error(`queries are limited to ${MAX_QUERY} characters; search with a few keywords`);
     if (++ctx.searches > MAX_SEARCHES) throw new Error(`at most ${MAX_SEARCHES} searches per answer; answer with what you have`);
-    if (cfg.confirmSearch && chat.refs.size && !(await confirmSearch(query))) throw new Error("the user did not allow this search; answer without it");
+    if (cfg.confirmSearch && (ctx.room || ctx.refs.size) && !(await confirmSearch(query, ctx.signal))) throw new Error("the user did not allow this search; answer without searching the web");
     return webSearch(query);
   }
   if (name === "fetch_url") {
@@ -799,7 +802,7 @@ async function ask(text, opts = null) {
   let answered = false;
   cutAt = 0;
   // Clear may swap the chat mid-answer; the rest of this answer stays with the old one
-  const { history } = chat;
+  const { history, refs } = chat;
   const before = history.length;
   const shown = addMsg("user", text);
   noteUrls(text);
@@ -844,6 +847,8 @@ async function ask(text, opts = null) {
       skip: room?.messages?.length ?? 0,
       before: room?.messages?.[0]?.ts ?? Infinity,
       searches: 0,
+      refs,
+      signal: abort.signal,
     };
     if (opts && ctx.room) {
       const r = ctx.room;
