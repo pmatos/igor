@@ -124,6 +124,11 @@ const sortedAsc = (r) => r.messages.every((m, i, a) => !i || a[i - 1].ts <= m.ts
   assert.equal(r.messages[0].body, "new text budget");
   assert.equal(r.messages[0].replyTo, "$e2");
   assert.ok((await searchRoom("!other:example.org", "x", 20)).error);
+  globalThis.location = { origin: "https://evil.example" };
+  const blocked = await searchRoom("!room:example.org", "budget", 20, ["https://chat.example.org"]);
+  assert.deepEqual(blocked, { error: "not-approved", origin: "https://evil.example" });
+  globalThis.location = { origin: "https://chat.example.org" };
+  assert.ok(!(await searchRoom("!room:example.org", "budget", 20, ["https://chat.example.org"])).error);
   console.log("reply fallback stripped; unknown room errors");
 }
 console.log("ALL OK");

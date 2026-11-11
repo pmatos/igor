@@ -279,7 +279,7 @@ async function runInTab(func, args) {
   const origin = new URL(tab.url).origin;
   if (!cfg.sites.includes(origin)) return { error: "not-approved", origin };
   try {
-    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func, args });
+    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func, args: [...args, cfg.sites] });
     const out = res?.result ?? { error: "empty" };
     if (!out.error) {
       const u = new URL(tab.url);

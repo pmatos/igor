@@ -2,7 +2,11 @@
 // it is serialized by chrome.scripting.executeScript.
 // With after (an event id), only events newer than it are fetched; the caller
 // keeps the older ones from its previous call.
-export async function extractRoom(limit, since = 0, after = null) {
+export async function extractRoom(limit, since = 0, after = null, origins = null) {
+  // indexed loop: the page controls Array.prototype in this world
+  let approved = !origins;
+  for (let i = 0; !approved && i < origins.length; i++) approved = origins[i] === location.origin;
+  if (!approved) return { error: "not-approved", origin: location.origin };
   const peg = window.mxMatrixClientPeg;
   const client =
     (peg && (peg.safeGet?.() ?? peg.get?.() ?? peg.matrixClient)) || null;
@@ -152,7 +156,10 @@ export async function extractRoom(limit, since = 0, after = null) {
 // Also injected, so also self-contained. The server's search index covers the
 // whole history but only of unencrypted rooms; encrypted history is paged and
 // matched here, newest first, up to a page cap.
-export async function searchRoom(roomId, query, limit) {
+export async function searchRoom(roomId, query, limit, origins = null) {
+  let approved = !origins;
+  for (let i = 0; !approved && i < origins.length; i++) approved = origins[i] === location.origin;
+  if (!approved) return { error: "not-approved", origin: location.origin };
   const peg = window.mxMatrixClientPeg;
   const client =
     (peg && (peg.safeGet?.() ?? peg.get?.() ?? peg.matrixClient)) || null;
