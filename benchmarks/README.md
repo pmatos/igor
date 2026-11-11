@@ -109,3 +109,32 @@ Spark mostly answers with a bare `[#N]` reference (Igor's prompt tells it to cit
 gemma stops after the search snippet and never fetches the page; Spark fetches but calls tools even when the answer is already in the room (87% of `restraint` cases).
 
 **Takeaway:** gemma4 26b is the better default for answering questions about a room. Spark is fast and handles tool calls, but it is much weaker at recall, abstention and replies.
+
+### Opening pages after a search (`results/2026-11-07-tools-*.jsonl`)
+
+Measured on an Apple M5 Pro (64 GB, Ollama 0.40.13, Metal) with the machine busy (load average 10-31), which affects time but not accuracy.
+
+Before this change, `web_search` returned only the results, and gemma4 26b answered from the snippets: it never opened a page (0/30 in `search_fetch`, the same as on the AMD laptop above). Now the results end with one sentence (`SNIPPET_NOTE` in `src/panel.js`, mirrored in `hard.py`): the snippets may not hold the answer, so open the most relevant result first. `gemma4:31b-it-qat` ran 10 cases per category (`--tools-n 10`) because it is about 6 times slower.
+
+| Category | 26b before | 26b after | 31b before | 31b after |
+|---|---|---|---|---|
+| `search` | 100% | 100% | 100% | 100% |
+| `search_fetch` | 0% (0/30) | 83% (25/30) | 100% (10/10) | 100% (10/10) |
+| `restraint` | 100% | 100% | 90% (9/10) | 90% (9/10) |
+| `older`, `decoy_tools`, `two_subjects` | 100% | 100% | 100% | 100% |
+
+Of the 5 remaining 26b `search_fetch` failures, 4 still answered from the snippets and 1 opened a distractor's page; all 5 said they could not find the codename instead of guessing. The 31b already opened pages without the sentence, and it does not hurt it. Its `restraint` miss is the same case in both runs: no tool call, but an empty answer.
+
+### Clock last and a fixed room window (`results/2026-11-07-recall-reply-26b-*.jsonl`)
+
+Same Mac, quiet this time (load average 1.5-2.9). Ollama reuses its work only on the part of a request that matches the previous one from the start. Before this change Igor's system prompt began with the current time and its room header gave the message count, so every question asked in a new minute, or after a new message, re-read the whole room. Now the time comes last and the header has no count; `hard.py` mirrors both. Recall and reply understanding with `gemma4:26b-a4b-it-qat`:
+
+| | Before | After |
+|---|---|---|
+| present recall (strict) | 79% | 81% |
+| ...also counting a cited `[#N]` | 82% | 82% |
+| abstention | 93% | 94% |
+| `revision` (latest value must win) | 53% | 58% |
+| replies, `plain` / `fallback` / `marker` | 73% / 99% / 100% | 75% / 99% / 100% |
+
+All differences are within the 95% intervals, so the reordering does not hurt answers. In Igor itself, with the real model and the test harness room, follow-up questions reused about 6,800 of 7,200 tokens and showed their first word after 0.5-0.9 s; the previous version re-read the whole room every time (9,300 tokens, 9.7-10.3 s).

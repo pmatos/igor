@@ -15,17 +15,24 @@
   </header>
 
   <div id="ctxbar">
-    <label><input type="checkbox" id="use-ctx" checked> Room context</label>
-    <label><input type="checkbox" id="use-tools" checked> Web tools</label>
     <span id="ctx-info">no room yet</span>
-    <button id="grant" hidden>Allow this site</button>
+    <button id="grant" hidden title="Let Igor read Element rooms on this site">Allow this site</button>
   </div>
 
   <main id="log"></main>
 
+  <div id="quick"></div>
+
   <form id="form">
-    <textarea id="input" rows="2" placeholder="Ask Igor about this room…"></textarea>
-    <button id="send" type="submit">Send</button>
+    <textarea id="input" rows="2" placeholder="Ask Igor about this room, or search it…"></textarea>
+    <div id="actions">
+      <button id="send" type="submit">Send</button>
+      <button id="search" type="button" disabled title="List this room's messages that contain all these words, without asking the model">Search</button>
+    </div>
+    <div id="send-opts">
+      <label title="Send the open room's recent messages with each question; the quick buttons always do"><input type="checkbox" id="use-ctx" checked> Room context</label>
+      <label title="Let the model search the web and fetch pages; turning it on asks for access to all sites"><input type="checkbox" id="use-tools" checked> Web tools</label>
+    </div>
   </form>
 
   <details id="settings">
@@ -33,6 +40,17 @@
     <label>Ollama URL <input id="base-url" type="text"></label>
     <label>Context window (tokens) <small id="ctx-max"></small> <input id="num-ctx" type="number" min="2048" step="1024"></label>
     <label>Max room messages <input id="max-msgs" type="number" min="10" step="10"></label>
+    <label>Keep the model loaded after an answer (minutes) <input id="keep-alive" type="number" min="1" step="5"></label>
+    <small>Ollama's own default is 5. A loaded model holds its memory (about 15 GB for gemma4:26b-a4b-it-qat); after it unloads, the next question waits for a reload and reads the room from scratch.</small>
+    <label>Quick buttons, one per line: <code>label | period | prompt</code>
+      <textarea id="buttons" rows="6" spellcheck="false"></textarea></label>
+    <small>Period: empty for the recent messages, <code>unread</code> (since your read marker) or days like <code>7d</code>; add <code>mentions</code> to keep only messages addressed to you. <code>{period}</code> in the prompt becomes the time span. Empty the box to restore the defaults.</small>
+    <small id="buttons-note"></small>
+    <label>Days to keep part summaries on disk <input id="part-days" type="number" min="0" step="1"></label>
+    <small>Counted from their last use. 0 keeps them in memory only, until Chrome restarts; encrypted rooms' summaries always stay in memory.</small>
+    <button type="button" id="forget">Forget cached part summaries</button>
+    <small id="sites-note"></small>
+    <button type="button" id="forget-sites">Forget approved Element sites</button>
   </details>
 
   <script type="module" src="panel.js"></script>
