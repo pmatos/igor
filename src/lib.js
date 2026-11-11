@@ -183,5 +183,15 @@ export function parseButtons(text) {
 // DOMParser document, so drop them. Only inside tags: page text such as
 // "set one = 5" must survive.
 export function stripHandlers(html) {
-  return html.replace(/<[^<>]*>/g, (tag) => tag.replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, ""));
+  if (!/on[a-z]+\s*=/i.test(html)) return html;
+  return html.replace(/<[a-z](?:[^>"']|"[^"]*"|'[^']*')*>/gi, (tag) => {
+    let first = true;
+    return tag.replace(/[\s/]*([^\s"'<>/=]+)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]*))?/g, (attr, name) => {
+      if (first) {
+        first = false;
+        return attr;
+      }
+      return /^on[a-z]+$/i.test(name) ? "" : attr;
+    });
+  });
 }
