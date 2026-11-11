@@ -398,7 +398,7 @@ async function refreshInfo() {
   el.grant.dataset.origin = r.origin ?? "";
   roomReady = !r.error;
   for (const b of [...$("quick").children, $("search")]) b.disabled = !roomReady;
-  if (roomReady && r.roomId !== seen?.roomId) seen = { roomId: r.roomId, readTs: r.readTs };
+  if (roomReady && (r.roomId !== seen?.roomId || (seen.readTs === undefined && r.readTs !== undefined))) seen = { roomId: r.roomId, readTs: r.readTs };
   if (roomReady && r.roomId !== chat.roomId) await switchChat(r.roomId);
   if (r.error === "not-approved") el.info.textContent = `${r.origin} is not an approved Element site`;
   else if (r.error === "inject") el.info.textContent = `no access to ${r.origin}`;
@@ -1066,7 +1066,10 @@ async function ask(text, opts = null) {
   } catch (e) {
     if (e.name !== "AbortError") addMsg("error", `Request failed: ${e.message}`);
     // otherwise every later question would carry this one and be refused too
-    if (e.tooLong) history.length = before;
+    if (e.tooLong) {
+      history.length = before;
+      for (let k = trims.length - 1; k >= 0; k--) if (trims[k][0] >= before) trims.splice(k, 1);
+    }
   } finally {
     // the previous answer's web results go now; this answer's stay for one more question
     if (answered && chat.history === history) {
