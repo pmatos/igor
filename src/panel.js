@@ -267,7 +267,10 @@ function saveChat() {
   });
 }
 
+const size = (ms) => ms.reduce((n, m) => n + formatMsg(m).length, 0);
+
 async function switchChat(roomId) {
+  if (chat.roomId === roomId) return;
   const key = `chat:${roomId}`;
   const saved = (await chrome.storage.session.get(key))[key];
   if (chat.roomId === roomId) return;
@@ -493,7 +496,6 @@ function fitLines(messages, budget) {
 // the end. A new start takes 3/4 of the limits, leaving room to grow.
 function roomWindow(messages) {
   const budget = roomBudget();
-  const size = (ms) => ms.reduce((n, m) => n + formatMsg(m).length, 0);
   // a reply points at [#N] only when that message is shown too
   const withReplies = (ms) => {
     const ids = new Set(ms.map((m) => m.id));
@@ -533,7 +535,6 @@ function runsBy(messages, key) {
 // Calendar weeks, then days, then runs that fit: older parts keep the same
 // messages from one run to the next, so their summaries can be cached.
 function splitParts(messages, budget) {
-  const size = (ms) => ms.reduce((n, m) => n + formatMsg(m).length, 0);
   const keys = [weekStart, (m) => formatTime(m.ts).slice(0, 10)];
   const split = (ms, level) => {
     if (size(ms) <= budget) return [ms];
@@ -1301,5 +1302,4 @@ chrome.tabs.onUpdated.addListener(async (id, change) => {
 await loadCfg();
 renderButtons();
 prunePartCache();
-await refreshInfo();
-await loadModels();
+await Promise.all([refreshInfo(), loadModels()]);

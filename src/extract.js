@@ -93,7 +93,7 @@ export async function extractRoom(limit, since = 0, after = null) {
     const text = `${body}\n${html}`.toLowerCase();
     return text.includes("@room") || handles.some((h) => text.includes(h));
   };
-  const messages = inWindow.slice(-limit).map((e) => {
+  const messages = (limit > 0 ? inWindow.slice(-limit) : []).map((e) => {
     const content = e.getContent();
     const replyTo = content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
     let body = content.body;
